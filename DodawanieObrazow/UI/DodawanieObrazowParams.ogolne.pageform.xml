@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<DataForm xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns="http://www.enova.pl/schema/form.xsd"
+          xsi:schemaLocation="http://www.enova.pl/schema/ http://www.enova.pl/schema/form.xsd"
+          RightName="Page:DodawanieObrazowPage"
+          Priority="100000">
+	<!--Nie wstawiać typu! Ewentualne z dll jak nie zadziala-->
+	<Page Name="DodawanieObrazowPage" CaptionHtml="DodawanieObrazow" DataContext="{DataSource}">
+		<Stack>
+			<Field CaptionHtml = "Sciezka dodawanego obrazu" EditValue="{Plik}" LabelWidth="25" OuterWidth="90" Class="FileEdit SaveFileEdit"></Field>
+			<Field CaptionHtml = "Opis"  LabelWidth="25" OuterWidth="90" EditValue="{Opis}"/>
+			<Field CaptionHtml = "AltOpis"  LabelWidth="25" OuterWidth="90" EditValue="{AltOpis}"/>
+		</Stack>
+	</Page>
+</DataForm>
+

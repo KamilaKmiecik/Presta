@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<DataForm xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns="http://www.enova.pl/schema/form.xsd"
+          xsi:schemaLocation="http://www.enova.pl/schema/ http://www.enova.pl/schema/form.xsd"
+          RightName="Page:PrestaDodawanieTowarowPage"
+          Priority="100000"
+          DataType="Towary">
+  <Page Name="PrestaDodawanieTowarowPage" CaptionHtml="Presta/PrestaDodawanieTowarow" DataContext="{new ConfigExtender}">
+    <Group>
+	 <Field CaptionHtml = "Dostepny" EditValue="{Dostepny}"/>
+	 <Field CaptionHtml = "Aktywny" EditValue="{Aktywny}"/>
+    </Group>
+  </Page>
+</DataForm>
