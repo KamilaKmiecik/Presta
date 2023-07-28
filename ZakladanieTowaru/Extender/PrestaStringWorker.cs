@@ -59,6 +59,8 @@ public class PrestaStringWorker
             var tm = TowaryModule.GetInstance(session);
             var cenaPodstawowa = tm.DefinicjeCen.WgNazwy["Podstawowa"];
 
+            var ceny = tm.DefinicjeCen.WgNazwy.ToList();
+
             using (ITransaction transaction = session.Logout(true))
             {
                 var towar = new Towar();
@@ -66,9 +68,8 @@ public class PrestaStringWorker
                 towar.Features["IdPresta"] = item.id;
                 towar.Features["Status"] = string.Equals(item.state, "1");
 
-                decimal result;
-                if(Decimal.TryParse(item.price, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out result));
-                    towar.Ceny[cenaPodstawowa].Netto = new DoubleCy(result); 
+                if(Decimal.TryParse(item.price, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal result))
+                    towar.Ceny[cenaPodstawowa].Netto = new DoubleCy(result);;
 
                 if (!string.IsNullOrEmpty(item.name[1].Value))
                     towar.Nazwa = item.name[1].Value;

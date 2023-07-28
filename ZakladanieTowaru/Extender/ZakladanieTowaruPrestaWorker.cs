@@ -94,6 +94,7 @@ namespace Start.Presta.ZakladanieTowaru.Extender
             }
         }
 
+
         private static string GetBase64StringForImage(string imagePath)
         {
             byte[] imageBytes = System.IO.File.ReadAllBytes(imagePath);
