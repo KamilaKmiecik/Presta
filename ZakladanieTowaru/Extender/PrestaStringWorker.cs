@@ -20,6 +20,9 @@ using System.Text;
 using Soneta.Types;
 using System.Globalization;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
+using System.Collections.Generic;
+using System.Xml.Linq;
+using static Soneta.Core.ComparePodmiot;
 
 [assembly: Worker(typeof(PrestaStringWorker), typeof(Towary))]
 public class PrestaStringWorker
@@ -50,11 +53,12 @@ public class PrestaStringWorker
         foreach (prestashopProduct item in prestaProdukty.products)
         {
             var view = session.GetTowary().Towary.CreateView();
-            view.Condition &= new FieldCondition.Equal("Features.IdPresta", item.id);
-            //view.Condition |= new FieldCondition.Equal("Nazwa", item.name[1].Value);
+            view.Condition &= new FieldCondition.Equal("Features.IdPresta", item.id); 
             var towary = view.ToArray<Towar>();
             if (towary.Any())
                 continue;
+
+            var kombinacje = GetKombinacje(item.id); 
 
             var tm = TowaryModule.GetInstance(session);
             var cenaPodstawowa = tm.DefinicjeCen.WgNazwy["Podstawowa"];
@@ -63,26 +67,98 @@ public class PrestaStringWorker
 
             using (ITransaction transaction = session.Logout(true))
             {
-                var towar = new Towar();
-                session.GetTowary().Towary.AddRow(towar);
-                towar.Features["IdPresta"] = item.id;
-                towar.Features["Status"] = string.Equals(item.state, "1");
+                if (kombinacje == null)
+                {
+                    var towar = new Towar();
+                    session.GetTowary().Towary.AddRow(towar);
+                    towar.Features["IdPresta"] = item.id;
+                    towar.Features["Status"] = string.Equals(item.state, "1");
 
-                if(Decimal.TryParse(item.price, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal result))
-                    towar.Ceny[cenaPodstawowa].Netto = new DoubleCy(result);;
 
-                if (!string.IsNullOrEmpty(item.name[1].Value))
-                    towar.Nazwa = item.name[1].Value;
+                    if (Decimal.TryParse(item.price, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal result))
+                        towar.Ceny[cenaPodstawowa].Netto = new DoubleCy(result); ;
+
+                    if (!string.IsNullOrEmpty(item.name[1].Value) || kombinacje == null)
+                        towar.Nazwa = item.name[1].Value;
+                    else
+                        towar.Nazwa = "Domyslna nazwa";
+
+                    produkty.Append(item.id + "\t" + towar.Nazwa + "\n");
+                    transaction.CommitUI();
+                }
                 else
-                    towar.Nazwa = "Domyslna nazwa"; 
+                {
+                    foreach (var kombinacja in kombinacje)
+                    {
+                        var towar = new Towar();
+                        session.GetTowary().Towary.AddRow(towar);
+                        towar.Features["IdPresta"] = item.id;
+                        towar.Features["Status"] = string.Equals(item.state, "1");
 
-                produkty.Append(item.id + "\t" + towar.Nazwa + "\n");
-                transaction.CommitUI();
+                        if (kombinacje != null)
+                        {
+                            towar.Features["IdKombinacja"] = kombinacja.Id.ToString();
+                            towar.Features["IdOpcja"] = kombinacja.nazwa;
+
+                            towar.Nazwa = item.name[1].Value + kombinacja.nazwa;
+                        }
+
+                        if (Decimal.TryParse(item.price, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal result))
+                            towar.Ceny[cenaPodstawowa].Netto = new DoubleCy(result); 
+
+                        produkty.Append(item.id + "\t" + towar.Nazwa + "\n");
+                        transaction.CommitUI();
+
+                    }
+                }
+                
+
             }
 
         }
         return new MessageBoxInformation("Wynik", $"Importowano dane {produkty}");
 
+    }
+
+    public List<(int Id, string nazwa)> GetKombinacje(string productId)
+    {
+        var request = "https://slezinski.pl/presta/api/combinations?filter[id_product]="+ productId +"&display=full";
+        var response = client.GetStringAsync(request).GetAwaiter().GetResult(); 
+
+        List<(int Id, List<int> ProductOptionValueIds)> pairs = new List<(int Id, List<int> ProductOptionValueIds)>();
+        List<(int Id, string nazwa)> nazwy = new List<(int Id, string nazwa)>();
+        XDocument xDocument = XDocument.Parse(response);
+
+        var combinationsNode = xDocument.Element("prestashop")?.Element("combinations");
+        if (combinationsNode == null || !combinationsNode.Elements("combination").Any())
+            return null; // No combinations found, return null to handle the empty case
+
+        var requestOptions = "https://slezinski.pl/presta/api/product_option_values?display=full";
+        var responseOptions = client.GetStringAsync(requestOptions).GetAwaiter().GetResult();
+        XDocument optionsXml = XDocument.Parse(responseOptions);
+        var options = optionsXml.Descendants("product_option_value");
+
+        var combinationNodes = xDocument.Descendants("combination");
+
+        foreach (var combinationNode in combinationNodes)
+        {
+            int id = int.Parse(combinationNode.Element("id").Value);
+            var productOptionValueNodes = combinationNode.Descendants("product_option_values");
+
+            List<int> productOptionValueIds = new List<int>();
+            string nazwaKombinacja = ""; 
+            foreach (var productOptionValueNode in productOptionValueNodes)
+            {
+                nazwaKombinacja += " " + options.FirstOrDefault(e => e.Element("id")?.Value == productOptionValueNode.Value).GetFieldValue("name", "language"); ;
+
+                productOptionValueIds.Add(int.Parse(productOptionValueNode.Value));
+            }
+
+            nazwy.Add((id, nazwaKombinacja));
+            pairs.Add((id, productOptionValueIds));
+        }
+
+        return nazwy;
     }
 
     public object GetId()

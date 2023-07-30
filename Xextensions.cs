@@ -31,6 +31,15 @@ namespace Start.Presta
             if (!string.IsNullOrEmpty(fieldValue))
                 element.Elements().Where(x => x.Name == fieldName).FirstOrDefault().Elements().Where(x => x.Name == latterFieldName).FirstOrDefault().ReplaceWith(new XElement(latterFieldName, new XCData(fieldValue)));
         }
+
+        public static string GetFieldValue(this XElement element, string fieldName, string latterFieldName)
+        {
+            if (!string.IsNullOrEmpty(fieldName))
+               return element.Elements().Where(x => x.Name == fieldName).FirstOrDefault().Elements().Where(x => x.Name == latterFieldName).FirstOrDefault().Value;
+            else
+                return string.Empty;
+        }
+
         public static void AddFieldValue(this XElement element, string fieldName, string latterFieldName, string fieldValue)
         {
             if (!string.IsNullOrEmpty(fieldValue))
@@ -43,6 +52,7 @@ namespace Start.Presta
             if (!string.IsNullOrEmpty(fieldValue))
                 element.Elements().Where(x => x.Name == fieldName).FirstOrDefault().Elements().Where(x => x.Name == latterFieldName).ElementAt(id - 1).ReplaceWith(new XElement(latterFieldName, new XAttribute("id", id), new XCData(fieldValue)));
         }
+
 
         public static XElement CleanUpSchema(this XElement element, XDocument schemaDocument)
         {
