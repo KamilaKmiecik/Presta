@@ -36,7 +36,6 @@ public class PrestaStringWorker
     public object Deserializacja()
     {
         client.AuthorizeClientBasic();
-
         //gregory
         ServicePointManager.ServerCertificateValidationCallback = (request, cert, chain, errors) => true;
         var response = client.GetStringAsync("https://slezinski.pl/presta/api/products?display=[id, name, state, price]").GetAwaiter().GetResult();
@@ -49,6 +48,10 @@ public class PrestaStringWorker
             prestaProdukty = (prestashop)new XmlSerializer(typeof(prestashop)).Deserialize(reader);
         }
 
+        var requestOptions = "https://slezinski.pl/presta/api/product_option_values?display=full";
+        var responseOptions = client.GetStringAsync(requestOptions).GetAwaiter().GetResult();
+
+
         var produkty = new StringBuilder();
         foreach (prestashopProduct item in prestaProdukty.products)
         {
@@ -58,7 +61,7 @@ public class PrestaStringWorker
             if (towary.Any())
                 continue;
 
-            var kombinacje = GetKombinacje(item.id); 
+            var kombinacje = GetKombinacje(item.id, responseOptions); 
 
             var tm = TowaryModule.GetInstance(session);
             var cenaPodstawowa = tm.DefinicjeCen.WgNazwy["Podstawowa"];
@@ -90,6 +93,10 @@ public class PrestaStringWorker
                 {
                     foreach (var kombinacja in kombinacje)
                     {
+                        view.Condition &= new FieldCondition.Equal("Features.IdKombinacja", kombinacja.Id.ToString());
+                        if (towary.Any())
+                            continue;
+
                         var towar = new Towar();
                         session.GetTowary().Towary.AddRow(towar);
                         towar.Features["IdPresta"] = item.id;
@@ -110,8 +117,7 @@ public class PrestaStringWorker
                         transaction.CommitUI();
 
                     }
-                }
-                
+                }  
 
             }
 
@@ -120,21 +126,20 @@ public class PrestaStringWorker
 
     }
 
-    public List<(int Id, string nazwa)> GetKombinacje(string productId)
+    public List<(int Id, string nazwa)> GetKombinacje(string productId, string responseOptions)
     {
         var request = "https://slezinski.pl/presta/api/combinations?filter[id_product]="+ productId +"&display=full";
         var response = client.GetStringAsync(request).GetAwaiter().GetResult(); 
 
-        List<(int Id, List<int> ProductOptionValueIds)> pairs = new List<(int Id, List<int> ProductOptionValueIds)>();
-        List<(int Id, string nazwa)> nazwy = new List<(int Id, string nazwa)>();
+        List<(int Id, List<int> produktOpcjeId)> kombinacjeId = new List<(int Id, List<int> produktOpcjeId)>();
+        List<(int Id, string nazwa)> kombinacjeNazwy = new List<(int Id, string nazwa)>();
         XDocument xDocument = XDocument.Parse(response);
 
         var combinationsNode = xDocument.Element("prestashop")?.Element("combinations");
         if (combinationsNode == null || !combinationsNode.Elements("combination").Any())
-            return null; // No combinations found, return null to handle the empty case
+            return null;
 
-        var requestOptions = "https://slezinski.pl/presta/api/product_option_values?display=full";
-        var responseOptions = client.GetStringAsync(requestOptions).GetAwaiter().GetResult();
+
         XDocument optionsXml = XDocument.Parse(responseOptions);
         var options = optionsXml.Descendants("product_option_value");
 
@@ -145,20 +150,20 @@ public class PrestaStringWorker
             int id = int.Parse(combinationNode.Element("id").Value);
             var productOptionValueNodes = combinationNode.Descendants("product_option_values");
 
-            List<int> productOptionValueIds = new List<int>();
+            List<int> opcjeId = new List<int>();
             string nazwaKombinacja = ""; 
             foreach (var productOptionValueNode in productOptionValueNodes)
             {
                 nazwaKombinacja += " " + options.FirstOrDefault(e => e.Element("id")?.Value == productOptionValueNode.Value).GetFieldValue("name", "language"); ;
 
-                productOptionValueIds.Add(int.Parse(productOptionValueNode.Value));
+                opcjeId.Add(int.Parse(productOptionValueNode.Value));
             }
 
-            nazwy.Add((id, nazwaKombinacja));
-            pairs.Add((id, productOptionValueIds));
+            kombinacjeNazwy.Add((id, nazwaKombinacja));
+            kombinacjeId.Add((id, opcjeId));
         }
 
-        return nazwy;
+        return kombinacjeNazwy;
     }
 
     public object GetId()

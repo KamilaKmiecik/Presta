@@ -19,6 +19,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Xml.Linq;
+using static Soneta.Core.ComparePodmiot;
 
 [assembly: Worker(typeof(MagazynUpdateWorker), typeof(Soneta.Magazyny.Zasoby))]
 
@@ -214,6 +215,13 @@ namespace Start.Presta.MagazynIlosc.Extender
 
             foreach (Soneta.Magazyny.Zasob zasob in Zasoby)
             {
+                //var st = new SubTable(session.GetMagazyny().Zasoby.WgMagazyn);
+                //st = st[new FieldCondition.Equal("Towar.Features.IdPresta", zasob.Towar.Features["IdPresta"])];
+                //st = st[new FieldCondition.Equal("Towar.Features.IdKombinacja", zasob.Towar.Features["IdKombinacja"])];
+                //var zasobyST = st.ToArray<Zasob>();
+                //if (zasobyST.Any())
+                //    continue;
+
                 var produktId = zasob.Towar.Features["IdPresta"];
                 var kombinacjaId = zasob.Towar.Features["IdKombinacja"];
                 var zasobPresta = zasoby.FirstOrDefault(z => string.Equals(z.GetFieldValue("id_product"), produktId) && string.Equals(z.GetFieldValue("id_product_attribute"), kombinacjaId));
